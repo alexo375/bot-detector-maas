@@ -14,4 +14,6 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 mpl.use("Agg")
 
-pytest_plugins: list[str] = []
+pytest_plugins = [
+    "tests.fixtures.mlflow_fixtures",
+]
