@@ -1,0 +1,105 @@
+name: "bot_ensemble"
+platform: "ensemble"
+max_batch_size: 64
+
+input [
+  {
+    name: "features"
+    data_type: TYPE_FP32
+    dims: [ 236 ]
+  }
+]
+output [
+  {
+    name: "probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+  {
+    name: "cb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+  {
+    name: "lgb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+  {
+    name: "xgb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+ensemble_scheduling {
+  step [
+    {
+      model_name: "catboost_detector"
+      model_version: -1
+      input_map {
+        key: "features"
+        value: "features"
+      }
+      output_map {
+        key: "probabilities"
+        value: "cb_probabilities"
+      }
+    },
+    {
+      model_name: "lightgbm_detector"
+      model_version: -1
+      input_map {
+        key: "float_input"
+        value: "features"
+      }
+      output_map {
+        key: "probabilities"
+        value: "lgb_probabilities"
+      }
+    },
+    {
+      model_name: "xgboost_detector"
+      model_version: -1
+      input_map {
+        key: "float_input"
+        value: "features"
+      }
+      output_map {
+        key: "probabilities"
+        value: "xgb_probabilities"
+      }
+    },
+    {
+      model_name: "logit_processor"
+      model_version: -1
+      input_map {
+        key: "cb_probabilities"
+        value: "cb_probabilities"
+      }
+      input_map {
+        key: "lgb_probabilities"
+        value: "lgb_probabilities"
+      }
+      input_map {
+        key: "xgb_probabilities"
+        value: "xgb_probabilities"
+      }
+      output_map {
+        key: "meta_input"
+        value: "meta_input"
+      }
+    },
+    {
+      model_name: "meta_stacker"
+      model_version: -1
+      input_map {
+        key: "meta_input"
+        value: "meta_input"
+      }
+      output_map {
+        key: "probabilities"
+        value: "probabilities"
+      }
+    }
+  ]
+}

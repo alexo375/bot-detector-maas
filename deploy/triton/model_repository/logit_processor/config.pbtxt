@@ -1,0 +1,28 @@
+name: "logit_processor"
+backend: "python"
+max_batch_size: 64
+
+input [
+  {
+    name: "cb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+  {
+    name: "lgb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+  {
+    name: "xgb_probabilities"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+output [
+  {
+    name: "meta_input"
+    data_type: TYPE_FP32
+    dims: [ 3 ]
+  }
+]
