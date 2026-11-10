@@ -1,0 +1,211 @@
+name: bot-detection-service
+
+services:
+  # Хранилище метаданных и реестра моделей MLflow
+  postgres:
+    image: postgres:17
+    container_name: bot-detector-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mlflow}
+      POSTGRES_USER: ${POSTGRES_USER:-mlflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlflow}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - mlflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mlflow} -d ${POSTGRES_DB:-mlflow}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # MLflow Tracking Server & Model Registry
+  mlflow:
+    build: .
+    container_name: bot-detector-mlflow
+    restart: unless-stopped
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    environment:
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --allowed-hosts "*"
+      --backend-store-uri postgresql+psycopg2://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow}
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Redis слой кэширования сессий и результатов
+  redis:
+    image: redis:7-alpine
+    container_name: bot-detector-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # NVIDIA Triton Inference Server
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.08-py3
+    container_name: bot-detector-triton
+    restart: unless-stopped
+    ports:
+      - "8000:8000"   # HTTP REST inference
+      - "8001:8001"   # gRPC inference
+      - "8002:8002"   # Prometheus metrics
+    volumes:
+      - ./deploy/triton/model_repository:/models
+    command:
+      [
+        "tritonserver",
+        "--model-repository=/models",
+        "--model-control-mode=explicit",
+        "--load-model=*",
+        "--log-verbose=0",
+        "--pinned-memory-pool-byte-size=0",
+      ]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/v2/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ брокер сообщений для асинхронного стрима логов
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: bot-detector-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"     # AMQP protocol
+      - "15672:15672"   # Management Web UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Аналитическое хранилище данных DWH ClickHouse
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: bot-detector-clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"   # HTTP REST API
+      - "9000:9000"   # Native TCP client
+    environment:
+      - CLICKHOUSE_DB=bot_detection
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - ./deploy/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Одноразовый bootstrap-сервис для применения миграций и сидирования DWH
+  clickhouse-init:
+    build: .
+    container_name: bot-detector-dwh-init
+    restart: "no"
+    command: ["python", "-m", "project.infrastructure.clickhouse.seeding.data_seeder"]
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DATABASE=bot_detection
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./data:/app/data:ro
+      - ./deploy:/app/deploy:ro
+      - ./src:/app/src:ro
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  # Изолированный Worker инференса: извлечение признаков и вызов Triton из RabbitMQ
+  inference-worker:
+    build: .
+    container_name: bot-detector-inference-worker
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    command: ["python", "-m", "project.infrastructure.workers.inference_worker", "--prefetch", "5"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TRITON_URL=http://triton:8000
+      - TRITON_GRPC_URL=triton:8001
+      - TRITON_PROTOCOL=grpc
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./src:/app/src:ro
+      - ./deploy:/app/deploy:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"with open('/proc/1/cmdline', 'rb') as f: assert b'inference_worker' in f.read()\""]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      redis:
+        condition: service_healthy
+      triton:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Consumer Worker для асинхронной записи логов батчами в ClickHouse
+  clickhouse-consumer:
+    build: .
+    container_name: bot-detector-consumer
+    restart: unless-stopped
+    command: ["python", "-m", "project.infrastructure.clickhouse.audit.consumer", "--batch-size", "50", "--flush-interval", "2.0"]
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DATABASE=bot_detection
+    volumes:
+      - ./src:/app/src:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"with open('/proc/1/cmdline', 'rb') as f: assert b'consumer' in f.read()\""]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  mlflow_pgdata:
+  mlflow_artifacts:
+  redis_data:
+  rabbitmq_data:
+  clickhouse_data:
