@@ -148,6 +148,43 @@ services:
       clickhouse:
         condition: service_healthy
 
+  # FastAPI API Gateway
+  api-gateway:
+    build: .
+    container_name: bot-detector-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TRITON_URL=http://triton:8000
+      - SCHEDULE_DRIFT_MONITORING_CRON=${SCHEDULE_DRIFT_MONITORING_CRON:-*/2 * * * *}
+      - TRITON_GRPC_URL=triton:8001
+      - TRITON_PROTOCOL=grpc
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - NTFY_URL=${NTFY_URL:-https://ntfy.sh/bot-detector-alerts}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - ALL_PROXY=${ALL_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,redis,triton,rabbitmq,clickhouse,mlflow,prefect,prometheus,alertmanager}
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./src:/app/src:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      triton:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+
   # Изолированный Worker инференса: извлечение признаков и вызов Triton из RabbitMQ
   inference-worker:
     build: .
