@@ -48,6 +48,86 @@ services:
       postgres:
         condition: service_healthy
 
+  # Prefect Orchestration Server & Web UI
+  prefect:
+    build: .
+    container_name: bot-detector-prefect
+    restart: unless-stopped
+    ports:
+      - "${PREFECT_PORT:-4200}:4200"
+    environment:
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_SERVER_API_PORT=4200
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
+      - PREFECT_LOGGING_LEVEL=${PREFECT_LOGGING_LEVEL:-INFO}
+      - PREFECT_HOME=/root/.prefect
+      - PREFECT_API_DATABASE_TIMEOUT=60.0
+      - PREFECT_API_DATABASE_CONNECTION_TIMEOUT=60.0
+      - PREFECT_API_DATABASE_CONNECTION_URL=sqlite+aiosqlite:////root/.prefect/prefect.db?timeout=60
+    command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
+    volumes:
+      - prefect_data:/root/.prefect
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:4200/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Prefect Worker для автоматического исполнения запланированных Flow
+  prefect-worker:
+    build: .
+    container_name: bot-detector-prefect-worker
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for Prefect server...' &&
+        until python -c \"import urllib.request; urllib.request.urlopen('http://prefect:4200/api/health')\" 2>/dev/null; do
+          sleep 2
+        done &&
+        echo 'Creating default-agent-pool...' &&
+        prefect work-pool create default-agent-pool --type process 2>/dev/null || true &&
+        echo 'Registering deployments in Prefect...' &&
+        python -m project.pipeline.drift_monitoring.flow --deploy &&
+        python -m project.pipeline.mlflow_retrainer.flow --deploy &&
+        python -m project.pipeline.model_rollback.flow --deploy &&
+        echo 'Cleaning up stale drift-monitor runs from previous worker...' &&
+        python -c \"import json, urllib.request; req=urllib.request.Request('http://prefect:4200/api/flow_runs/filter', data=json.dumps({'flow_runs': {'state': {'type': {'any_': ['RUNNING', 'CANCELLING']}}}}).encode(), headers={'Content-Type': 'application/json'}); runs=json.loads(urllib.request.urlopen(req, timeout=5).read()); [urllib.request.urlopen(urllib.request.Request(f'http://prefect:4200/api/flow_runs/{r[\\\"id\\\"]}/set_state', data=json.dumps({'state': {'type': 'CANCELLED', 'name': 'Cancelled', 'message': 'Cleared stale run on worker startup'}, 'force': True}).encode(), headers={'Content-Type': 'application/json'}), timeout=5) for r in runs]\" 2>/dev/null || true &&
+        echo 'Starting Prefect worker on default-agent-pool...' &&
+        exec prefect worker start --pool default-agent-pool --limit 2
+      "
+    environment:
+      - PREFECT_API_URL=http://prefect:4200/api
+      - PREFECT_LOGGING_LEVEL=${PREFECT_LOGGING_LEVEL:-INFO}
+      - PREFECT_LOGGING_EXTRA_LOGGERS=project
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
+      - TRITON_URL=http://triton:8000
+      - TRITON_GRPC_URL=triton:8001
+      - TRITON_PROTOCOL=grpc
+      - SCHEDULE_DRIFT_MONITORING_CRON=${SCHEDULE_DRIFT_MONITORING_CRON:-*/2 * * * *}
+      - SCHEDULE_AUTO_TRIGGER_RETRAIN=${SCHEDULE_AUTO_TRIGGER_RETRAIN:-false}
+    volumes:
+      - ./data:/app/data
+      - ./deploy:/app/deploy
+      - ./src:/app/src:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"with open('/proc/1/cmdline', 'rb') as f: assert b'prefect' in f.read()\""]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      prefect:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
   # Redis слой кэширования сессий и результатов
   redis:
     image: redis:7-alpine
@@ -241,6 +321,7 @@ services:
         condition: service_healthy
 
 volumes:
+  prefect_data:
   mlflow_pgdata:
   mlflow_artifacts:
   redis_data:

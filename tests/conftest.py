@@ -16,6 +16,7 @@ mpl.use("Agg")
 
 pytest_plugins = [
     "tests.fixtures.mlflow_fixtures",
+    "tests.fixtures.prefect_fixtures",
     "tests.fixtures.dialogue_fixtures",
     "tests.fixtures.synthetic_data_fixtures",
     "tests.fixtures.mock_fixtures",
