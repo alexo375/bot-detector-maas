@@ -1,0 +1,25 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ["alertname", "severity"]
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 2h
+  receiver: "ntfy"
+  routes:
+    - matchers:
+        - severity = critical
+      repeat_interval: 30m
+    - matchers:
+        - severity = warning
+      repeat_interval: 2h
+    - matchers:
+        - severity = info
+      repeat_interval: 4h
+
+receivers:
+  - name: "ntfy"
+    webhook_configs:
+      - url: "http://api-gateway:8080/alerts/webhook"
+        send_resolved: true

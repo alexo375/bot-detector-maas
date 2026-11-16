@@ -1,0 +1,113 @@
+groups:
+  - name: bot_detection_alerts
+    rules:
+      # 1. Сервис недоступен
+      - alert: ApiGatewayDown
+        expr: up{job="api-gateway"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "FastAPI Gateway is down"
+          description: "API Gateway instance {{ $labels.instance }} has been unreachable for more than 15s."
+
+      # 2. Сервер инференса Triton недоступен
+      - alert: TritonServerDown
+        expr: up{job="triton-inference-server"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Triton Inference Server is down"
+          description: "NVIDIA Triton Server is unreachable. Inference may be degraded or falling back."
+
+      # 2b. Изолированный воркер инференса недоступен
+      - alert: InferenceWorkerDown
+        expr: up{job="inference-worker"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Inference Worker is down"
+          description: "Inference Worker instance {{ $labels.instance }} is unreachable. Async predictions in RabbitMQ will stall."
+
+      # 3. Высокий уровень ошибок 5xx (> 1%)
+      - alert: HighHttpErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) > 0.01
+        for: 30s
+        labels:
+          severity: high
+        annotations:
+          summary: "HTTP 5xx error rate exceeds 1%"
+          description: "Service is experiencing high 5xx server error rate (current: {{ $value | humanizePercentage }})."
+
+      # 4. Деградация задержки (p95 > 200 ms в воркере инференса)
+      - alert: HighInferenceLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(bot_detector_inference_latency_seconds_bucket{job="inference-worker"}[1m])) by (le)) > 0.200
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Inference latency p95 exceeds 200ms"
+          description: "P95 inference latency has degraded above 200ms threshold (current: {{ $value }}s)."
+
+      # 5. Деградация попаданий в кэш Redis (Hit Rate < 20% под нагрузкой)
+      - alert: LowCacheHitRate
+        expr: rate(bot_detector_cache_hits_total[5m]) / (rate(bot_detector_cache_hits_total[5m]) + rate(bot_detector_cache_misses_total[5m])) < 0.20
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "Redis Cache Hit Rate is below 20%"
+          description: "Dialogue cache efficiency is low. Many cold dialogues are arriving."
+
+      # 6. Высокий уровень дрифта признаков (> 20%)
+      - alert: HighDataDriftDetected
+        expr: bot_detector_data_drift_share > 0.20
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature Data Drift share exceeds 20%"
+          description: "Statistical data drift detected across input features (share: {{ $value | humanizePercentage }}). Model retraining recommended."
+
+      # 7. Дрифт распределения предсказаний (PSI >= 0.25)
+      - alert: PredictionDriftDetected
+        expr: bot_detector_prediction_drift_psi >= 0.25
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model Prediction Drift (PSI) exceeds 0.25"
+          description: "Output probability distribution has drifted significantly from training OOF baseline (PSI={{ $value | printf \"%.3f\" }}). Model retraining recommended."
+
+      # 8. Высокая энтропия предсказаний (неуверенность модели >= 0.85)
+      - alert: HighPredictionEntropyDetected
+        expr: bot_detector_prediction_entropy >= 0.85
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Prediction Entropy exceeds 0.85"
+          description: "Model predictions show high uncertainty (mean Shannon entropy={{ $value | printf \"%.3f\" }}). Model quality degradation or calibration drift suspected."
+
+      # 9. Рассогласование базовых моделей ансамбля (>= 35%)
+      - alert: EnsembleDisagreementDetected
+        expr: bot_detector_ensemble_disagreement_rate >= 0.35
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ensemble Disagreement exceeds 35%"
+          description: "Base models disagree above threshold (disagreement={{ $value | humanizePercentage }}). Concept drift suspected."
+
+      # 10. Сдвиг концепта (disagreement или падение rank correlation важности признаков)
+      - alert: ConceptDriftDetected
+        expr: bot_detector_concept_drift_detected == 1
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model Concept Drift detected"
+          description: "Concept drift detector triggered (feature-rank shift or model disagreement exceeds threshold)."
+

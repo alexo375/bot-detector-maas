@@ -1,0 +1,320 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "API Gateway Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "Requests/sec",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "title": "Request Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "expr": "sum by (status) (rate(http_requests_total{job=\"api-gateway\"}[1m]))",
+          "legendFormat": "Status {{status}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "expr": "sum(rate(http_requests_total{job=\"api-gateway\"}[1m])) or vector(0)",
+          "legendFormat": "Total Requests"
+        }
+      ],
+      "description": "Ingress HTTP throughput (RPS) grouped by response status code (2xx, 4xx, 5xx) and total volume."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "Milliseconds",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 3,
+      "title": "Inference Latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(bot_detector_inference_latency_seconds_bucket[1m])) by (le)) * 1000 or histogram_quantile(0.50, sum(rate(http_request_duration_highr_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p50 (ms)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(bot_detector_inference_latency_seconds_bucket[1m])) by (le)) * 1000 or histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p95 (ms)"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(bot_detector_inference_latency_seconds_bucket[1m])) by (le)) * 1000 or histogram_quantile(0.99, sum(rate(http_request_duration_highr_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p99 (ms)"
+        }
+      ],
+      "description": "End-to-end inference and feature extraction latency percentiles (p50, p95, p99) in milliseconds."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 30
+              },
+              {
+                "color": "green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 4,
+      "title": "Cache Hit Rate",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "(sum(rate(bot_detector_cache_hits_total[2m])) / (sum(rate(bot_detector_cache_hits_total[2m])) + sum(rate(bot_detector_cache_misses_total[2m])))) * 100 or vector(100)",
+          "legendFormat": "Hit Rate %"
+        }
+      ],
+      "description": "Percentage of inference requests served from Redis cache (O(1) lookups) without invoking the ML pipeline."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 5,
+      "title": "Model Telemetry & Inference",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "barAlignment": 0
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Verdict Distribution",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (verdict) (increase(bot_detector_predictions_total[1m]))",
+          "legendFormat": "{{verdict}}"
+        }
+      ],
+      "description": "Distribution of classified dialogue verdicts (both humans, both bots, participant 0 bot, participant 1 bot)."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Inference Throughput",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(nv_inference_exec_count[1m])) by (model)",
+          "legendFormat": "{{model}}"
+        }
+      ],
+      "description": "Execution rate of inference operations across Triton models (CatBoost, LightGBM, XGBoost, Meta-Stacker)."
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "production",
+    "bot-detector",
+    "triton",
+    "prometheus"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "title": "Bot Detection Production Overview",
+  "uid": "bot-detector-prod-overview",
+  "version": 1
+}

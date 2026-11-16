@@ -92,7 +92,7 @@ services:
         python -m project.pipeline.mlflow_retrainer.flow --deploy &&
         python -m project.pipeline.model_rollback.flow --deploy &&
         echo 'Cleaning up stale drift-monitor runs from previous worker...' &&
-        python -c \"import json, urllib.request; req=urllib.request.Request('http://prefect:4200/api/flow_runs/filter', data=json.dumps({'flow_runs': {'state': {'type': {'any_': ['RUNNING', 'CANCELLING']}}}}).encode(), headers={'Content-Type': 'application/json'}); runs=json.loads(urllib.request.urlopen(req, timeout=5).read()); [urllib.request.urlopen(urllib.request.Request(f'http://prefect:4200/api/flow_runs/{r[\\\"id\\\"]}/set_state', data=json.dumps({'state': {'type': 'CANCELLED', 'name': 'Cancelled', 'message': 'Cleared stale run on worker startup'}, 'force': True}).encode(), headers={'Content-Type': 'application/json'}), timeout=5) for r in runs]\" 2>/dev/null || true &&
+        python -c "import json, urllib.request; req=urllib.request.Request('http://prefect:4200/api/flow_runs/filter', data=json.dumps({'flow_runs': {'state': {'type': {'any_': ['RUNNING', 'CANCELLING']}}}}).encode(), headers={'Content-Type': 'application/json'}); runs=json.loads(urllib.request.urlopen(req, timeout=5).read()); [urllib.request.urlopen(urllib.request.Request(f'http://prefect:4200/api/flow_runs/{r[\"id\"]}/set_state', data=json.dumps({'state': {'type': 'CANCELLED', 'name': 'Cancelled', 'message': 'Cleared stale run on worker startup'}, 'force': True}).encode(), headers={'Content-Type': 'application/json'}), timeout=5) for r in runs]" 2>/dev/null || true &&
         echo 'Starting Prefect worker on default-agent-pool...' &&
         exec prefect worker start --pool default-agent-pool --limit 2
       "
@@ -276,10 +276,21 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - TRITON_URL=http://triton:8000
+      - SCHEDULE_DRIFT_MONITORING_CRON=${SCHEDULE_DRIFT_MONITORING_CRON:-*/2 * * * *}
       - TRITON_GRPC_URL=triton:8001
       - TRITON_PROTOCOL=grpc
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - NTFY_URL=${NTFY_URL:-https://ntfy.sh/bot-detector-alerts}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - ALL_PROXY=${ALL_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,redis,triton,rabbitmq,clickhouse,mlflow,prefect,prometheus,alertmanager}
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./src:/app/src:ro
       - ./deploy:/app/deploy:ro
@@ -320,6 +331,74 @@ services:
       clickhouse:
         condition: service_healthy
 
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: bot-detector-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      - api-gateway
+
+  # Alertmanager с роутингом в ntfy
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: bot-detector-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9093/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: bot-detector-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      - prometheus
+
 volumes:
   prefect_data:
   mlflow_pgdata:
@@ -327,3 +406,11 @@ volumes:
   redis_data:
   rabbitmq_data:
   clickhouse_data:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
+
+networks:
+  default:
+    name: bot-detection-net
+

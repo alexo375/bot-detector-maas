@@ -1,0 +1,610 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "System Health & Drift",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.15
+              },
+              {
+                "color": "red",
+                "value": 0.25
+              }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "title": "Data Drift Share",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "max(bot_detector_data_drift_share) or vector(0)",
+          "instant": true,
+          "legendFormat": "Drift Share"
+        }
+      ],
+      "description": "Proportion of input features exhibiting statistical data drift according to two-sample Kolmogorov-Smirnov tests (threshold: 20%)."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 0.5,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.25
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 3,
+      "title": "Prediction Drift",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "max(bot_detector_prediction_drift_psi) or vector(0)",
+          "instant": true,
+          "legendFormat": "PSI"
+        }
+      ],
+      "description": "Population Stability Index (PSI) measuring prediction probability distribution shift (<0.1 stable, >0.2 significant drift)."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.6
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 4,
+      "title": "Prediction Entropy",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "max(bot_detector_prediction_entropy) or vector(0)",
+          "instant": true,
+          "legendFormat": "Entropy"
+        }
+      ],
+      "description": "Mean Shannon Entropy H(p) of model predictions. Higher values indicate increasing classifier uncertainty."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "HEALTHY"
+                },
+                "1": {
+                  "color": "orange",
+                  "text": "AWAITING DATA"
+                },
+                "2": {
+                  "color": "red",
+                  "text": "RETRAIN NEEDED"
+                },
+                "3": {
+                  "color": "blue",
+                  "text": "RETRAINING"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              },
+              {
+                "color": "blue",
+                "value": 3
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 5,
+      "title": "Model Retrain Status",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "max(bot_detector_adaptive_retrain_status) or vector(0)",
+          "instant": true,
+          "legendFormat": "Status"
+        }
+      ],
+      "description": "Operational status: 0=HEALTHY (nominal), 1=AWAITING DATA (drift detected, collecting samples), 2=RETRAIN NEEDED (drift/staleness alert fired; awaiting manual retrain in Prefect), 3=RETRAINING (active training run in Prefect)."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 6,
+      "title": "Prediction Stability",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "PSI",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 7,
+      "title": "PSI History",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bot_detector_prediction_drift_psi",
+          "legendFormat": "PSI Index"
+        }
+      ],
+      "description": "Historical trajectory of Population Stability Index (PSI) tracking prediction drift across consecutive monitoring cycles."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "Bits",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 8,
+      "title": "Entropy History",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bot_detector_prediction_entropy",
+          "legendFormat": "Mean Entropy"
+        }
+      ],
+      "description": "Historical trajectory of model prediction uncertainty (mean Shannon entropy) over time."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 9,
+      "title": "Feature Stability",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 0.05
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 0,
+        "y": 16
+      },
+      "description": "Two-sample Kolmogorov-Smirnov test p-values for feature distributions. p < 0.05 indicates statistical drift.",
+      "id": 10,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "title": "Feature Stability Scores",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "bot_detector_feature_drift_p_value",
+          "instant": true,
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "Drift %",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "max": 1,
+          "min": 0,
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 16
+      },
+      "id": 11,
+      "title": "Drift Share History",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "max(bot_detector_data_drift_share)",
+          "legendFormat": "Drift Share"
+        }
+      ],
+      "description": "Historical percentage of input features exhibiting statistical distribution drift."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 12,
+      "title": "Concept Drift & Feature Shifts",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "description": "Absolute delta in feature importance between Challenger and Champion models.",
+      "id": 13,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "title": "Feature Importance Shifts",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "bot_detector_feature_importance_delta",
+          "instant": true,
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 27
+      },
+      "description": "Rank displacement of features by importance ranking in the ensemble.",
+      "id": 14,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "title": "Feature Rank Shifts",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "bot_detector_feature_rank_shift",
+          "instant": true,
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.2
+              },
+              {
+                "color": "red",
+                "value": 0.35
+              }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 27
+      },
+      "id": 15,
+      "title": "Ensemble Disagreement",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "max(bot_detector_ensemble_disagreement_rate) or vector(0)",
+          "instant": true,
+          "legendFormat": "Disagreement"
+        }
+      ],
+      "description": "Rate of conflicting predictions between CatBoost, LightGBM, and XGBoost before meta-stacker. 0% indicates unanimous agreement; values > 15% signal high tree ambiguity or emerging concept drift."
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "mlops",
+    "data-drift",
+    "prediction-drift",
+    "concept-drift",
+    "quality"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "title": "Data Drift & Feature Quality",
+  "uid": "data-drift-overview"
+}
