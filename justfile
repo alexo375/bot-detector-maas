@@ -26,6 +26,24 @@ check-static:
     uv run poe check-lengths
     uv run poe oop-check
 
+# === Нагрузочное тестирование (Locust) ===
+
+# Быстрый 15-секундный smoke-тест под нагрузкой
+[group('load')]
+load-smoke:
+    uv run locust -f tests/load/locustfile.py --headless -u 5 -r 1 --run-time 15s --host http://127.0.0.1:8080 --only-summary
+
+# Стресс-тестирование сервиса (60 пользователей, 60 секунд)
+[group('load')]
+load-stress:
+    uv run locust -f tests/load/locustfile.py --headless -u 60 -r 10 --run-time 60s --host http://127.0.0.1:8080 --only-summary
+
+# Формирование подробного HTML-отчета и CSV-метрик нагрузочного тестирования (5 минут)
+[group('load')]
+load-report:
+    mkdir -p reports
+    uv run locust -f tests/load/locustfile.py --headless -u 100 -r 10 --run-time 5m --host http://127.0.0.1:8080 --html reports/locust_report.html --csv reports/locust_data --only-summary
+
 # === Эксплуатация и MLOps сценарии ===
 
 # Комплексный аудит доступности всех компонентов рантайма (Triton Inference Server, API Gateway, Prometheus Metrics)
