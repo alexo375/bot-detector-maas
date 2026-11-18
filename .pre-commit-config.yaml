@@ -1,0 +1,40 @@
+# Pre-commit configuration for production bot detection stack
+# Note: Repository root contains legacy homework directories (hw1-hw7),
+# so hooks are strictly scoped to project/ to prevent unintended checks on hw folders.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--config=project/pyproject.toml, --fix]
+        files: ^project/
+      - id: ruff-format
+        args: [--config=project/pyproject.toml]
+        files: ^project/
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv --directory project run poe typecheck
+        language: system
+        pass_filenames: false
+        files: ^project/(src|tests)/
+      - id: check-file-lengths
+        name: check-file-lengths
+        entry: uv --directory project run poe check-lengths
+        language: system
+        pass_filenames: false
+        files: ^project/src/
+      - id: arch-check
+        name: arch-check
+        entry: uv --directory project run poe arch-check
+        language: system
+        pass_filenames: false
+        files: ^project/src/
+      - id: security-audit
+        name: security-audit
+        entry: uv --directory project run poe security-audit
+        language: system
+        pass_filenames: false
+        files: ^project/src/

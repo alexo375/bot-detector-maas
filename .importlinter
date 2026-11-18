@@ -1,0 +1,46 @@
+[importlinter]
+root_package = project
+include_external_packages = False
+
+[importlinter:contract:core-isolation]
+name = Core domain isolation
+type = forbidden
+source_modules =
+    project.core
+forbidden_modules =
+    project.api
+    project.pipeline
+    project.tracking
+    project.infrastructure
+    project.models
+    project.features
+
+[importlinter:contract:features-isolation]
+name = Features layer isolation
+type = forbidden
+source_modules =
+    project.features
+forbidden_modules =
+    project.api
+    project.pipeline
+    project.tracking
+    project.infrastructure
+
+[importlinter:contract:models-isolation]
+name = Models layer isolation
+type = forbidden
+source_modules =
+    project.models
+forbidden_modules =
+    project.api
+    project.pipeline
+    project.infrastructure
+
+[importlinter:contract:infra-isolation]
+name = Infrastructure isolation from Presentation and Orchestration
+type = forbidden
+source_modules =
+    project.infrastructure
+forbidden_modules =
+    project.api
+    project.pipeline

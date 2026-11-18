@@ -6,25 +6,54 @@ default:
 
 # === Комплексные сценарии валидации ===
 
-# Быстрый цикл валидации для разработчика перед коммитом
+# Полный прогон всех проверок проекта: статика, безопасность, тесты с порогом покрытия
+[group('check')]
+check: check-static check-security
+    uv run poe test-cov
+
+# Быстрый цикл валидации для разработчика перед коммитом (вся статика + модульные тесты)
 [group('check')]
 check-fast: check-static
     uv run poe test-unit
 
-# Автоматическое исправление стиля кода и форматирования
+# Автоматическое исправление стиля кода, неиспользуемых импортов и форматирования
 [group('check')]
 fix:
     uv run poe lint-fix
     uv run poe format
 
-# Базовые статические проверки
+# Все статические валидации: линтинг, форматирование, типы, мертвый код, длины файлов, архитектурные границы
 [group('check')]
 check-static:
     uv run poe lint
     uv run poe format-check
     uv run poe typecheck
+    uv run poe dead-code
     uv run poe check-lengths
     uv run poe oop-check
+    uv run poe arch-check
+
+# Проверки безопасности: статический аудит AST (Bandit) и сканирование уязвимостей зависимостей (pip-audit)
+[group('check')]
+check-security:
+    uv run poe security-audit
+    uv run poe audit
+
+# === CI/CD Сценарии ===
+
+# Этап статического анализа и безопасности для GitLab CI
+[group('ci')]
+ci-lint: check-static check-security
+
+# Этап прогона тестового набора для GitLab CI с генерацией JUnit XML отчета
+[group('ci')]
+ci-test:
+    uv run pytest -m "not live" --junitxml=junit.xml
+
+# Полная локальная имитация пайплайна GitLab CI (линтинг, безопасность, тесты, валидация compose-манифеста)
+[group('ci')]
+ci: ci-lint ci-test
+    docker compose config -q
 
 # === Нагрузочное тестирование (Locust) ===
 
