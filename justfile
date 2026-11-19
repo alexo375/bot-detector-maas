@@ -41,16 +41,16 @@ check-security:
 
 # === CI/CD Сценарии ===
 
-# Этап статического анализа и безопасности для GitLab CI
+# Этап статического анализа и безопасности для CI
 [group('ci')]
 ci-lint: check-static check-security
 
-# Этап прогона тестового набора для GitLab CI с генерацией JUnit XML отчета
+# Этап прогона тестового набора для CI с генерацией JUnit XML отчета
 [group('ci')]
 ci-test:
     uv run pytest -m "not live" --junitxml=junit.xml
 
-# Полная локальная имитация пайплайна GitLab CI (линтинг, безопасность, тесты, валидация compose-манифеста)
+# Полная локальная имитация CI-пайплайна (линтинг, безопасность, тесты, валидация compose-манифеста)
 [group('ci')]
 ci: ci-lint ci-test
     docker compose config -q

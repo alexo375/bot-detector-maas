@@ -107,7 +107,7 @@ curl -s -X POST "http://localhost:8080/predict" \
 ```bash
 uv run just check           # Полная проверка: статика, безопасность и тесты
 uv run just check-fast      # Быстрая проверка: вся статика + модульные тесты
-uv run just ci              # Локальная имитация GitLab CI (статика, безопасность, тесты, compose)
+uv run just ci              # Локальная имитация GitHub Actions CI (статика, безопасность, тесты, compose)
 uv run just fix             # Автоформатирование и исправление ошибок линтера
 uv run just verify-system   # Проверка доступности Triton, API Gateway и /metrics
 uv run just load-smoke      # Нагрузочное smoke-тестирование Locust
