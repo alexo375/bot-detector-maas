@@ -78,6 +78,10 @@ def test_drift_monitoring_flow_drift_detected() -> None:
         patch("project.pipeline.drift_monitoring.flow.detect_feature_drift_task") as mock_detect,
         patch("project.pipeline.metrics_sync.DriftMetricsSyncService.trigger_api_gateway_metrics"),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.count_recent_dialogues", return_value=500),
+        patch(
+            "project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_prediction_data",
+            return_value=(np.array([]), np.array([]), []),
+        ),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_concept_drift_probs", return_value={}),
         patch(
             "project.drift.model_age.ChampionMetadataReader.read",
@@ -128,6 +132,10 @@ def test_drift_monitoring_flow_manual_mode_by_default() -> None:
         patch("project.pipeline.drift_monitoring.flow.detect_feature_drift_task") as mock_detect,
         patch("project.pipeline.metrics_sync.DriftMetricsSyncService.trigger_api_gateway_metrics"),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.count_recent_dialogues", return_value=500),
+        patch(
+            "project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_prediction_data",
+            return_value=(np.array([]), np.array([]), []),
+        ),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_concept_drift_probs", return_value={}),
         patch(
             "project.drift.model_age.ChampionMetadataReader.read",
@@ -169,6 +177,10 @@ def test_drift_monitoring_flow_skips_when_retrain_in_progress() -> None:
         patch("project.pipeline.drift_monitoring.flow.detect_feature_drift_task") as mock_detect,
         patch("project.pipeline.metrics_sync.DriftMetricsSyncService.trigger_api_gateway_metrics"),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.count_recent_dialogues", return_value=500),
+        patch(
+            "project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_prediction_data",
+            return_value=(np.array([]), np.array([]), []),
+        ),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_concept_drift_probs", return_value={}),
         patch(
             "project.drift.model_age.ChampionMetadataReader.read",
@@ -209,6 +221,10 @@ def test_drift_monitoring_flow_drift_awaiting_data() -> None:
         patch("project.pipeline.drift_monitoring.flow.detect_feature_drift_task") as mock_detect,
         patch("project.pipeline.metrics_sync.DriftMetricsSyncService.trigger_api_gateway_metrics"),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.count_recent_dialogues", return_value=15),
+        patch(
+            "project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_prediction_data",
+            return_value=(np.array([]), np.array([]), []),
+        ),
         patch("project.drift.data_drift.fetcher.DWHFeatureFetcher.fetch_concept_drift_probs", return_value={}),
         patch(
             "project.drift.model_age.ChampionMetadataReader.read",

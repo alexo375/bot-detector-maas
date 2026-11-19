@@ -11,6 +11,9 @@ os.environ.setdefault("OMP_NUM_THREADS", "2")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
 os.environ.setdefault("MKL_NUM_THREADS", "2")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("MLFLOW_DISABLE_TELEMETRY", "true")
+os.environ.setdefault("DO_NOT_TRACK", "true")
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 
 mpl.use("Agg")
 

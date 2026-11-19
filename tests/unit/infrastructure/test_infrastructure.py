@@ -15,6 +15,12 @@ from project.infrastructure.redis import DialogueCache
 def test_core_config_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     """Проверка загрузки настроек конфигурации по умолчанию."""
     monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
+    monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
+    monkeypatch.delenv("CLICKHOUSE_PORT", raising=False)
+    monkeypatch.delenv("REDIS_HOST", raising=False)
+    monkeypatch.delenv("REDIS_PORT", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.delenv("RABBITMQ_URL", raising=False)
     cfg = AppConfig()
     assert cfg.mlflow_tracking_uri == "http://127.0.0.1:5000"
     assert cfg.redis.host == "localhost"
