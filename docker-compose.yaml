@@ -244,15 +244,6 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - NTFY_URL=${NTFY_URL:-https://ntfy.sh/bot-detector-alerts}
-      - HTTP_PROXY=${HTTP_PROXY:-}
-      - HTTPS_PROXY=${HTTPS_PROXY:-}
-      - ALL_PROXY=${ALL_PROXY:-}
-      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,redis,triton,rabbitmq,clickhouse,mlflow,prefect,prometheus,alertmanager}
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./src:/app/src:ro
     depends_on:
@@ -282,15 +273,6 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - NTFY_URL=${NTFY_URL:-https://ntfy.sh/bot-detector-alerts}
-      - HTTP_PROXY=${HTTP_PROXY:-}
-      - HTTPS_PROXY=${HTTPS_PROXY:-}
-      - ALL_PROXY=${ALL_PROXY:-}
-      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,redis,triton,rabbitmq,clickhouse,mlflow,prefect,prometheus,alertmanager}
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./src:/app/src:ro
       - ./deploy:/app/deploy:ro
